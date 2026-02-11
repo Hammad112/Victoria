@@ -247,6 +247,37 @@ class FixedTraitScorer:
             trait_questions = self.mapper.get_questions_for_trait(trait)
             trait_values = []
             
+            # Special handling for Social Orientation (IN) - Option 2: Weighted Intensity
+            if trait == 'IN':
+                weights = []
+                for question in trait_questions:
+                    if question in person_data.index:
+                        raw_val = self.mapper.map_likert_to_numeric(person_data[question])
+                        
+                        # Apply Reverse Keying and Weights
+                        if "drain my energy" in question or "observant" in question or "active listener" in question or "reflect" in question:
+                            # Introverted traits: Reverse and standard weight
+                            val = 1.0 - raw_val
+                            weight = 1.0
+                        elif "pitch ideas" in question or "jump into conversations" in question:
+                            # High-Agency Extroverted traits: High weight
+                            val = raw_val
+                            weight = 1.5
+                        else:
+                            # Standard Extroverted traits: Standard weight
+                            val = raw_val
+                            weight = 1.0
+                            
+                        trait_values.append(val * weight)
+                        weights.append(weight)
+                
+                if trait_values:
+                    trait_scores[trait] = sum(trait_values) / sum(weights)
+                else:
+                    trait_scores[trait] = 0.5
+                continue
+
+            # Standard logic for other traits
             for question in trait_questions:
                 if question in person_data.index:
                     value = self.mapper.map_likert_to_numeric(person_data[question])

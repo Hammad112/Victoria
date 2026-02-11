@@ -86,19 +86,19 @@ class VisualizationEngine:
                 'Social Orientation': 'Social Orientation',
                 'Resilience & Grit': 'Resilience and Grit',
                 'Servant Leadership': 'Servant Leadership',
-                'Emotional Intelligence': 'Emotional Intelligence',
+                'Emotional Intel.': 'Emotional Intelligence',
                 'Decision-Making': 'Decision Making',
                 'Problem-Solving': 'Problem Solving',
                 'Drive & Ambition': 'Drive and Ambition',
-                'Innovation Orientation': 'Innovation Orientation',
+                'Innovation Orient.': 'Innovation Orientation',
                 'Adaptability': 'Adaptability',
                 'Critical Thinking': 'Critical Thinking',
                 'Team Building': 'Team Building',
                 'Risk Taking': 'Risk Taking',
                 'Accountability': 'Accountability',
-                'Relationship-Building': 'Relationship-Building',
+                'Relationship-Bldg': 'Relationship-Building',
                 'Negotiation': 'Negotiation',
-                'Conflict Resolution': 'Conflict Resolution',
+                'Conflict Resol.': 'Conflict Resolution',
                 'Approach to Failure': 'Approach to Failure'
             }
             
@@ -107,26 +107,33 @@ class VisualizationEngine:
             detector = ArchetypeDetector()
             correlation_data = detector.get_archetype_correlation_data()
             
-            # Get key traits for each archetype for highlighting
-            archetype_key_traits = {}
-            for archetype_id, archetype_obj in detector.archetypes.items():
-                archetype_name = archetype_obj.name
-                archetype_key_traits[archetype_name] = archetype_obj.key_traits
+            # Get archetype match scores for display
+            trait_scores = profile_data.get('trait_scores', {})
+            archetype_result = detector.detect_archetype(trait_scores)
+            all_match_scores = archetype_result.get('all_scores', {})
             
-            # Define archetypes in exact order with line breaks for long names
-            archetypes = [
-                'Adaptive<br>Intelligence', 'Ambitious Drive', 'Collaborative<br>Responsibility', 
-                'Resilient<br>Leadership', 'Strategic<br>Innovation'
+            # Define archetypes in exact order with line breaks and MATCH SCORES
+            archetypes = []
+            archetype_display_to_full = {}
+            
+            # Order items exactly for visualization
+            arch_order = [
+                ('Adaptive Intelligence', 'Adaptive<br>Intelligence'),
+                ('Ambitious Drive', 'Ambitious Drive'),
+                ('Collaborative Responsibility', 'Collaborative<br>Responsibility'),
+                ('Resilient Leadership', 'Resilient<br>Leadership'),
+                ('Strategic Innovation', 'Strategic<br>Innovation')
             ]
             
-            # Map display names (with line breaks) to full names for correlation data
-            archetype_display_to_full = {
-                'Adaptive<br>Intelligence': 'Adaptive Intelligence',
-                'Ambitious Drive': 'Ambitious Drive',
-                'Collaborative<br>Responsibility': 'Collaborative Responsibility',
-                'Resilient<br>Leadership': 'Resilient Leadership',
-                'Strategic<br>Innovation': 'Strategic Innovation'
-            }
+            for full_name, display_base in arch_order:
+                # Find matching ID (keys in all_match_scores are like 'adaptive_intelligence')
+                arch_id = full_name.lower().replace(' ', '_')
+                match_val = all_match_scores.get(arch_id, 0.0)
+                match_pct = int(match_val * 100)
+                
+                display_name = f"{display_base}<br>({match_pct}% Match)"
+                archetypes.append(display_name)
+                archetype_display_to_full[display_name] = full_name
             
             # Create trait score matrix and text matrix using ONLY correlation data
             trait_score_matrix = []
@@ -209,15 +216,22 @@ class VisualizationEngine:
                         )
                     )
             
-            # Add highlighting for key traits in each archetype
+            # Improved Border Drawing Logic (Ensures 100% accuracy)
             for i, archetype_display in enumerate(archetypes):
                 archetype_full = archetype_display_to_full.get(archetype_display, archetype_display)
-                key_traits = archetype_key_traits.get(archetype_full, [])
+                # Find the archetype object to get the latest key traits
+                arch_id = archetype_full.lower().replace(' ', '_')
+                arch_obj = detector.archetypes.get(arch_id)
+                key_traits = arch_obj.key_traits if arch_obj else []
+                
+                logger.info(f"Adding borders for archetype: {archetype_full}, Key traits: {key_traits}")
+                
                 for j, trait_display_name in enumerate(trait_display_names):
-                    trait_name = trait_names[j]
-                    archetype_trait_name = heatmap_to_archetype_mapping.get(trait_name, trait_name)
+                    # Check if THIS SPECIFIC display name maps to a key trait for THIS archetype
+                    mapped_trait_name = heatmap_to_archetype_mapping.get(trait_display_name, trait_display_name)
                     
-                    if archetype_trait_name in key_traits:
+                    if mapped_trait_name in key_traits:
+                        logger.info(f"  Highlighting cell: {archetype_full} -> {trait_display_name} (mapped as {mapped_trait_name})")
                         # Add orange border for key traits
                         fig.add_shape(
                             type="rect",

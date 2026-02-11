@@ -147,9 +147,6 @@ class ArchetypeDetector:
         Returns:
             Correlation score between 0.0 and 1.0 (approximated)
         """
-        # EXPLICIT OVERRIDE: Social Orientation should always be 0.0 as requested
-        if trait_name == "Social Orientation":
-            return 0.0
 
         # 1. Check if it's a Key Trait (Highest Correlation)
         if trait_name in archetype.key_traits:
