@@ -221,6 +221,7 @@ class VetriaPipeline:
                 'archetype_color': archetype_result['archetype_color'],
                 'archetype_score': round(archetype_result['archetype_score'] * 100, 1),  # Convert to percentage
                 'confidence': archetype_result['confidence'],
+                'archetype_key_traits': archetype_result.get('key_traits', []),  # Pass key traits to report
                 'overall_score': overall_score,
                 'open_ended_responses': open_ended_responses,
                 'entrepreneurial_stage': 'Discover',  # Default stage

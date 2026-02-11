@@ -122,7 +122,7 @@ Provide actionable, specific recommendations that align with their goals and cur
             prompt = prompts.get(content_type, f"Generate content for {content_type}")
             
             response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=500,
                 temperature=0.7
@@ -344,22 +344,29 @@ Provide actionable, specific recommendations that align with their goals and cur
             if self.openai_client:
                 # Generate archetype paragraph only
                 clean_archetype_name = archetype_name.replace('\\', '')
+                # Get actual key traits from the archetype definition
+                archetype_key_traits = data.get('archetype_key_traits', [])
+                key_traits_str = ', '.join(archetype_key_traits) if archetype_key_traits else 'Not defined'
+                
                 archetype_prompt = f"""
                 Write a professional paragraph (3-4 sentences) about the {clean_archetype_name} archetype in entrepreneurship.
                 
+                IMPORTANT - The KEY TRAITS for {clean_archetype_name} are: {key_traits_str}
+                
                 Focus ONLY on:
                 - What this archetype is and how it functions in entrepreneurship
-                - The practical characteristics and behaviors of this archetype
+                - Mention the specific key traits: {key_traits_str}
                 - How this archetype approaches business challenges and opportunities
                 
+                YOU MUST mention these exact key traits: {key_traits_str}
                 DO NOT mention any personal responses, quotes, or individual details.
                 Be professional and concise.
                 """
                 
                 archetype_response = self.openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                     messages=[
-                        {"role": "system", "content": "You are an expert entrepreneurial coach. Write ONLY about archetypes in entrepreneurship. Do not mention personal responses or individual details."},
+                        {"role": "system", "content": f"You are an expert entrepreneurial coach. Write ONLY about archetypes in entrepreneurship. The key traits for {clean_archetype_name} are: {key_traits_str}. You MUST mention these exact traits."},
                         {"role": "user", "content": archetype_prompt}
                     ],
                     max_tokens=200,
@@ -379,16 +386,17 @@ Provide actionable, specific recommendations that align with their goals and cur
                 success_def = open_ended_responses.get('What would success look like for you in this phase of exploration?', 'Not provided')
                 entrepreneurial_energy = open_ended_responses.get('If you were to fully embrace your entrepreneurial energy, what might become possible?', 'Not provided')
                 
-                print(f"DEBUG - Journey stage: {journey_stage}")
-                print(f"DEBUG - Entrepreneurship definition: {entrepreneurship_def}")
-                print(f"DEBUG - What energizes: {what_energizes}")
-                print(f"DEBUG - Future vision: {future_vision}")
-                print(f"DEBUG - Desired impact: {desired_impact}")
-                print(f"DEBUG - What draws: {what_draws}")
-                print(f"DEBUG - Initiative example: {initiative_example}")
-                print(f"DEBUG - Fears: {fears}")
-                print(f"DEBUG - Success definition: {success_def}")
-                print(f"DEBUG - Entrepreneurial energy: {entrepreneurial_energy}")
+                # Debug logging
+                logger.debug(f"Journey stage: {journey_stage}")
+                logger.debug(f"Entrepreneurship definition: {entrepreneurship_def}")
+                logger.debug(f"What energizes: {what_energizes}")
+                logger.debug(f"Future vision: {future_vision}")
+                logger.debug(f"Desired impact: {desired_impact}")
+                logger.debug(f"What draws: {what_draws}")
+                logger.debug(f"Initiative example: {initiative_example}")
+                logger.debug(f"Fears: {fears}")
+                logger.debug(f"Success definition: {success_def}")
+                logger.debug(f"Entrepreneurial energy: {entrepreneurial_energy}")
                 
                 personal_prompt = f"""
                 Write a professional paragraph (3-4 sentences) analyzing these specific responses and how they connect to the {clean_archetype_name} archetype.
@@ -416,7 +424,7 @@ Provide actionable, specific recommendations that align with their goals and cur
                 """
                 
                 personal_response = self.openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                     messages=[
                         {"role": "system", "content": "You are an expert entrepreneurial coach. Write ONLY about analyzing personal responses and how they connect to archetypes. You MUST use the exact quotes provided in the responses. Do not describe the archetype itself. Focus on their specific words and how they demonstrate archetype characteristics."},
                         {"role": "user", "content": personal_prompt}
@@ -476,7 +484,7 @@ Provide actionable, specific recommendations that align with their goals and cur
 Write a brief 2-3 line explanation that highlights how these specific traits work together to create entrepreneurial success. Focus on the synergy between these exact strengths and their practical impact in business contexts. Use an inspiring and professional tone that references the specific strengths mentioned in the trait descriptions."""
                 
                 response = self.openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=120,
                     temperature=0.7
@@ -540,7 +548,7 @@ Write a brief 2-3 line explanation that highlights how these specific traits wor
 Write a brief 2-3 line explanation that motivates development in these specific areas. Focus on the potential impact of improving these exact traits and how they complement existing strengths. Use an encouraging and professional tone that references the specific growth potential mentioned in the trait descriptions."""
                 
                 response = self.openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=150,
                     temperature=0.7
@@ -567,8 +575,7 @@ Write a brief 2-3 line explanation that motivates development in these specific 
             bottom_traits = sorted_traits[:3]  # Take the first 3 (lowest scores)
             
             # Debug: Print the bottom 3 traits being selected
-            print(f"DEBUG - All traits sorted by score: {[(trait, round(score, 3)) for trait, score in sorted_traits]}")
-            print(f"DEBUG - Bottom 3 traits selected: {[(trait, round(score, 3)) for trait, score in bottom_traits]}")
+
             
             if not bottom_traits:
                 return []
@@ -806,6 +813,7 @@ Don't stop at insight. Step into Vertria Vantage, the next stage of your journey
             traits.sort(key=lambda x: x['score'], reverse=True)
             
             # Create prioritized Key Traits list: Social Orientation FIRST, then archetype key traits
+            # Create prioritized Key Traits list based on Archetype definition
             from victoria.core.archetype_detector import ArchetypeDetector
             detector = ArchetypeDetector()
             archetype_name = data.get('archetype_name', 'Resilient Leadership')
@@ -817,33 +825,15 @@ Don't stop at insight. Step into Vertria Vantage, the next stage of your journey
                     archetype_obj = arch
                     break
             
-            # Create prioritized traits list for Key Traits section
             key_traits_for_section = []
             
-            # STEP 1: ALWAYS add Social Orientation FIRST (trait code 'IN')
-            if 'IN' in trait_scores:
-                social_orientation_score = trait_scores['IN']
-                social_orientation_name = self.trait_name_mapping.get('IN', 'Social Orientation')
-                social_orientation_description = self._get_trait_description('IN', social_orientation_score)
-                key_traits_for_section.append({
-                    'code': social_orientation_name,
-                    'name': social_orientation_name,
-                    'score': social_orientation_score,
-                    'percentage': round(social_orientation_score * 100, 1),
-                    'description': social_orientation_description,
-                    'is_low_score': social_orientation_score < 0.6,
-                    'css_class': 'low-score' if social_orientation_score < 0.6 else '',
-                    'is_key_trait': False,  # Not technically a key trait, but always shown
-                    'is_social_orientation': True  # Flag to identify this special trait
-                })
-            
-            # STEP 2: Add archetype key traits (up to 3 more, for total of 4)
+            # Add ALL archetype key traits
             if archetype_obj:
                 # Map archetype key trait names to trait codes
                 key_trait_codes = []
                 for key_trait_name in archetype_obj.key_traits:
                     trait_code = detector.trait_name_to_code.get(key_trait_name)
-                    if trait_code and trait_code != 'IN':  # Exclude IN since we already added it
+                    if trait_code:
                         key_trait_codes.append(trait_code)
                 
                 # Get trait data for key traits, sorted by score (highest first)
@@ -864,30 +854,30 @@ Don't stop at insight. Step into Vertria Vantage, the next stage of your journey
                             'is_key_trait': True
                         })
                 
-                # Sort archetype key traits by score (highest first) and take top 3
+                # Sort archetype key traits by score (highest first)
                 archetype_key_traits_data.sort(key=lambda x: x['score'], reverse=True)
-                key_traits_for_section.extend(archetype_key_traits_data[:3])
+                key_traits_for_section.extend(archetype_key_traits_data)
                 
-                # If we have fewer than 4 total traits (including Social Orientation), 
-                # fill remaining slots with highest-scoring non-key traits
+                # We want exactly TOP 4 traits
+                # If we have fewer than 4 key traits, fill with highest scoring non-key traits
                 if len(key_traits_for_section) < 4:
                     remaining_slots = 4 - len(key_traits_for_section)
                     existing_codes = [t['code'] for t in key_traits_for_section]
+                    
+                    # Get all other traits not already added
                     non_key_traits = [t for t in traits if t['code'] not in existing_codes]
+                    # Ensure they are sorted by score
+                    non_key_traits.sort(key=lambda x: x['score'], reverse=True)
+                    
                     key_traits_for_section.extend(non_key_traits[:remaining_slots])
                 
-                data['key_traits'] = key_traits_for_section[:4]  # Ensure max 4 traits
-            else:
-                # Fallback: Social Orientation + top 3 by score if archetype not found
-                if 'IN' in trait_scores:
-                    # Social Orientation already added above, get remaining traits
-                    social_orientation_name = self.trait_name_mapping.get('IN', 'Social Orientation')
-                    remaining_traits = [t for t in traits if t['code'] != social_orientation_name]
-                    key_traits_for_section.extend(remaining_traits[:3])
-                else:
-                    # If IN not found, just use top 4 by score
-                    key_traits_for_section = traits[:4]
+                # Ensure we strictly have top 4
                 data['key_traits'] = key_traits_for_section[:4]
+            else:
+                # Fallback: just use top 4 by score
+                key_traits_for_section = traits[:4]
+                data['key_traits'] = key_traits_for_section
+
             
             # Add traits data to template data
             data['traits'] = traits
